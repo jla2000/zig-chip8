@@ -61,6 +61,7 @@ pub fn emulate() void {
 /// Execute a single instruction
 fn emulate_cycle() void {
     const opcode = @as(u16, memory[pc]) << 8 | @as(u16, memory[pc + 1]);
-    std.debug.print("0x{x:04}: 0x{x:02}\n", .{ pc, opcode });
+    _ = opcode;
+    // std.debug.print("0x{x:04}: 0x{x:02}\n", .{ pc, opcode });
     pc += 2;
 }

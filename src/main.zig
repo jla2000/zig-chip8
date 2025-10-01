@@ -27,6 +27,20 @@ pub fn main() !void {
     });
     defer rl.UnloadTexture(display_texture);
 
+    rl.InitAudioDevice();
+    defer rl.CloseAudioDevice();
+
+    const beep_sound = rl.LoadSoundFromWave(rl.Wave{
+        .data = null,
+        .frameCount = 0,
+        .sampleRate = 0,
+        .sampleSize = 0,
+        .channels = 1,
+    });
+    defer rl.UnloadSound(beep_sound);
+
+    rl.PlaySound(beep_sound);
+
     // var random_data = std.mem.zeroes([DISPLAY_WIDTH * DISPLAY_HEIGHT]u8);
     // for (&random_data) |*value| {
     //     value.* = @intCast(rl.GetRandomValue(0, 255));
