@@ -74,5 +74,5 @@ fn emulate_cycle() void {
     const opcode = @as(u16, memory[pc]) << 8 | @as(u16, memory[pc + 1]);
     _ = opcode;
     // std.debug.print("0x{x:04}: 0x{x:02}\n", .{ pc, opcode });
-    pc += 2;
+    pc = @min(pc + 2, memory.len - 2); // TODO: implement out-of-bounds handling
 }
