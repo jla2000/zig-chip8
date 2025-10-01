@@ -5,12 +5,9 @@ const rl = @cImport({
     @cInclude("raylib.h");
 });
 
-const DISPLAY_WIDTH = 64;
-const DISPLAY_HEIGHT = 32;
-
 const WINDOW_SCALE = 20;
-const WINDOW_WIDTH = WINDOW_SCALE * DISPLAY_WIDTH;
-const WINDOW_HEIGHT = WINDOW_SCALE * DISPLAY_HEIGHT;
+const WINDOW_WIDTH = WINDOW_SCALE * cpu.FRAME_BUFFER_WIDTH;
+const WINDOW_HEIGHT = WINDOW_SCALE * cpu.FRAME_BUFFER_HEIGHT;
 
 pub fn main() !void {
     cpu.load_rom(@embedFile("trip8.ch8"));
@@ -20,8 +17,8 @@ pub fn main() !void {
 
     const display_texture = rl.LoadTextureFromImage(rl.Image{
         .data = null,
-        .width = DISPLAY_WIDTH,
-        .height = DISPLAY_HEIGHT,
+        .width = cpu.FRAME_BUFFER_WIDTH,
+        .height = cpu.FRAME_BUFFER_HEIGHT,
         .format = rl.PIXELFORMAT_UNCOMPRESSED_GRAYSCALE,
         .mipmaps = 1,
     });
