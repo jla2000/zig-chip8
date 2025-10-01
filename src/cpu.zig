@@ -1,5 +1,11 @@
 const std = @import("std");
 
+pub const FRAME_BUFFER_WIDTH = 64;
+pub const FRAME_BUFFER_HEIGHT = 32;
+
+/// If a frame has been finished rendering it is stored here.
+pub var frame_buffer = std.mem.zeroes([FRAME_BUFFER_WIDTH * FRAME_BUFFER_HEIGHT]u8);
+
 var memory = std.mem.zeroes([4096]u8);
 var stack = std.mem.zeroes([16]u16);
 
@@ -56,6 +62,11 @@ pub fn emulate() void {
 
     sound_timer = sound_timer -| 1;
     delay_timer = delay_timer -| 1;
+}
+
+/// Indicates whether a beeping sound should be played currently.
+pub fn should_play_sound() bool {
+    return sound_timer > 0;
 }
 
 /// Execute a single instruction

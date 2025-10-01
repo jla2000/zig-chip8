@@ -39,21 +39,20 @@ pub fn main() !void {
     });
     defer rl.UnloadSound(beep_sound);
 
-    rl.PlaySound(beep_sound);
-
-    // var random_data = std.mem.zeroes([DISPLAY_WIDTH * DISPLAY_HEIGHT]u8);
-    // for (&random_data) |*value| {
-    //     value.* = @intCast(rl.GetRandomValue(0, 255));
-    // }
-    //
-    // rl.UpdateTexture(display_texture, &random_data);
-
     rl.SetTargetFPS(60);
     while (!rl.WindowShouldClose()) {
         cpu.emulate();
 
+        if (cpu.should_play_sound() and !rl.IsSoundPlaying(beep_sound)) {
+            rl.PlaySound(beep_sound);
+        }
+        if (!cpu.should_play_sound() and rl.IsSoundPlaying(beep_sound)) {
+            rl.StopSound(beep_sound);
+        }
+
         rl.BeginDrawing();
         rl.ClearBackground(rl.BLACK);
+        rl.UpdateTexture(display_texture, &cpu.frame_buffer);
         rl.DrawTexturePro(display_texture, rl.Rectangle{
             .x = 0,
             .y = 0,
