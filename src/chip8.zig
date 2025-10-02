@@ -3,10 +3,16 @@ const std = @import("std");
 pub const FRAME_BUFFER_WIDTH = 64;
 pub const FRAME_BUFFER_HEIGHT = 32;
 
+const FRAME_BUFFER_SIZE = FRAME_BUFFER_WIDTH * FRAME_BUFFER_HEIGHT;
+
+/// Two buffers that are used for presenting and rendering.
+var front_buffer = std.mem.zeroes([FRAME_BUFFER_SIZE]u8);
+var back_buffer = std.mem.zeroes([FRAME_BUFFER_SIZE]u8);
+
 /// Points to the frame that should be displayed currently.
-pub var frame_buffer = &std.mem.zeroes([FRAME_BUFFER_WIDTH * FRAME_BUFFER_HEIGHT]u8);
+pub var frame_buffer = &front_buffer;
 /// Points to the frame that is rendered currently.
-var render_buffer = &std.mem.zeroes([FRAME_BUFFER_WIDTH * FRAME_BUFFER_HEIGHT]u8);
+var render_buffer = &back_buffer;
 
 var memory = std.mem.zeroes([4096]u8);
 var stack = std.mem.zeroes([16]u16);
@@ -76,27 +82,48 @@ fn run_instruction() void {
     const opcode_high = memory[pc];
     const opcode_low = memory[pc + 1];
 
+    std.debug.print("0x{x:04}: 0x{x:02}{x:02}\n", .{ pc, opcode_high, opcode_low });
+
     const x = opcode_high & 0xf;
     const y = opcode_low >> 2;
     const nn = opcode_low;
     const nnn = read_u16(pc) & 0xfff;
 
-    _ = x;
-    _ = y;
-    _ = nn;
+    pc += 2;
 
     switch (opcode_high >> 4) {
         0x0 => switch (nnn) {
-            0x0E0 => {}, // clear display,
-            0x0EE => {}, // return,
-            else => unreachable, // call machine code routine
+            // Clear display
+            0x0E0 => {
+                @memset(render_buffer, 0);
+                render();
+            },
+            // Return
+            0x0EE => pc = pop_stack(),
+            // call machine code routine
+            else => unreachable,
         },
-        0x1 => {}, // goto nnn
-        0x2 => {}, // call nnn
-        0x3 => {}, // if Vx == NN
-        0x4 => {}, // if Vx != NN
-        0x5 => {}, // if Vx == Vy
-        0x6 => {}, // Vx = nn
+        // goto nnn
+        0x1 => pc = nnn,
+        // call nnn
+        0x2 => {
+            push_stack(pc);
+            pc = nnn;
+        },
+        // if Vx == NN
+        0x3 => if (regs[x] == nn) {
+            pc += 2;
+        },
+        // if Vx != NN
+        0x4 => if (regs[x] != nn) {
+            pc += 2;
+        },
+        // if Vx == Vy
+        0x5 => if (regs[x] == regs[y]) {
+            pc += 2;
+        },
+        // Vx = nn
+        0x6 => {},
         0x7 => {},
         0x8 => {},
         0x9 => {},
@@ -108,12 +135,32 @@ fn run_instruction() void {
         0xf => {},
         else => unreachable,
     }
+}
 
-    // std.debug.print("0x{x:04}: 0x{x:02}\n", .{ pc, opcode });
-    pc = @min(pc + 2, memory.len - 2); // TODO: implement out-of-bounds handling
+/// Swap buffers
+fn render() void {
+    const tmp = frame_buffer;
+    frame_buffer = render_buffer;
+    render_buffer = tmp;
 }
 
 /// Read an u16 from the given address in memory.
 fn read_u16(address: u16) u16 {
     return @as(u16, memory[address]) << 8 | @as(u16, memory[address + 1]);
+}
+
+// Write an u16 to the given address in memory.
+fn write_u16(address: u16, value: u16) void {
+    memory[address] = @intCast(value >> 8);
+    memory[address + 1] = @intCast(value);
+}
+
+fn push_stack(value: u16) void {
+    stack[sp] = value;
+    sp += 1;
+}
+
+fn pop_stack() u16 {
+    sp -= 1;
+    return stack[sp];
 }
