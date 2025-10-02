@@ -1,5 +1,8 @@
 const std = @import("std");
 
+pub const CPU_CLOCK_SPEED = 600;
+pub const TIMER_CLOCK_SPEED = 60;
+
 pub const VIDEO_BUF_WIDTH = 64;
 pub const VIDEO_BUF_HEIGHT = 32;
 
@@ -28,6 +31,9 @@ var idx: u16 = 0;
 
 var sound_timer: u8 = 0;
 var delay_timer: u8 = 0;
+
+var cycle_counter: usize = 0;
+var pending_cycles: f32 = 0;
 
 /// Load the given bytes into memory.
 /// Should be called only once (reset not yet implemented).
@@ -60,14 +66,31 @@ pub fn load_rom(rom: []const u8) void {
 }
 
 /// Emulate the CPU.
-/// Should be called with a tickrate of 60Hz.
-pub fn emulate() void {
-    sound_timer -|= 1;
-    delay_timer -|= 1;
+pub fn emulate(num_cycles: f32, audio_samples: [*]u8, num_audio_samples: usize) void {
+    pending_cycles += num_cycles;
 
-    // Should result in a tickrate of 600Hz.
-    for (0..10) |_| {
+    const samples_per_cycle = num_audio_samples / @as(usize, @intFromFloat(pending_cycles));
+    var generated_samples: usize = 0;
+
+    while (pending_cycles > 0.0) {
         run_instruction();
+
+        if (should_play_sound()) {
+            for (0..samples_per_cycle) |_| {
+                const freq = 440;
+                const t = @as(f32, @floatFromInt(generated_samples)) / 44100.0;
+                audio_samples[generated_samples] = if (@sin(2.0 * std.math.pi * freq * t) > 0) 100 else 0;
+                generated_samples += 1;
+            }
+        }
+
+        if (cycle_counter % (CPU_CLOCK_SPEED / TIMER_CLOCK_SPEED) == 0) {
+            sound_timer -|= 1;
+            delay_timer -|= 1;
+        }
+
+        cycle_counter +%= 1;
+        pending_cycles -= 1.0;
     }
 }
 

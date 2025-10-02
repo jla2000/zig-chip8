@@ -5,6 +5,7 @@ const rl = @cImport({
     @cInclude("raylib.h");
 });
 
+const AUDIO_SAMPLE_RATE = 44100;
 const WINDOW_SCALE = 10;
 const WINDOW_WIDTH = WINDOW_SCALE * chip8.VIDEO_BUF_WIDTH;
 const WINDOW_HEIGHT = WINDOW_SCALE * chip8.VIDEO_BUF_HEIGHT;
@@ -27,27 +28,15 @@ pub fn main() !void {
     rl.InitAudioDevice();
     defer rl.CloseAudioDevice();
 
-    // Generate samples for one complete frame.
-    const sample_rate = 44100;
-    const freq = 440;
-    var samples = std.mem.zeroes([sample_rate]u8);
-    for (0..samples.len) |i| {
-        const t = @as(f32, @floatFromInt(i)) / sample_rate;
-        samples[i] = if (@sin(2.0 * std.math.pi * freq * t) > 0) 255 else 0;
-    }
+    const audio_stream = rl.LoadAudioStream(AUDIO_SAMPLE_RATE, 8, 1);
+    defer rl.UnloadAudioStream(audio_stream);
 
-    const beep_sound = rl.LoadSoundFromWave(rl.Wave{
-        .data = &samples,
-        .frameCount = samples.len,
-        .sampleRate = sample_rate,
-        .sampleSize = 8,
-        .channels = 1,
-    });
-    defer rl.UnloadSound(beep_sound);
+    rl.SetAudioStreamCallback(audio_stream, audio_stream_callback);
+    rl.PlayAudioStream(audio_stream);
 
     rl.SetTargetFPS(60);
     while (!rl.WindowShouldClose()) {
-        chip8.emulate();
+        // chip8.emulate();
 
         rl.BeginDrawing();
         rl.UpdateTexture(display_texture, &chip8.front_buffer);
@@ -65,15 +54,15 @@ pub fn main() !void {
             .x = 0,
             .y = 0,
         }, 0, rl.WHITE);
-        rl.DrawFPS(0, 0);
         rl.EndDrawing();
 
-        if (chip8.should_play_sound() and !rl.IsSoundPlaying(beep_sound)) {
-            rl.PlaySound(beep_sound);
-            std.debug.print("beep ", .{});
-        }
-        if (!chip8.should_play_sound() and rl.IsSoundPlaying(beep_sound)) {
-            rl.StopSound(beep_sound);
-        }
+        // if (chip8.should_play_sound() and rl.IsAudioStreamProcessed(audio_stream)) {}
     }
+}
+
+fn audio_stream_callback(audio_sample_ptr: ?*anyopaque, num_audio_samples: c_uint) callconv(.c) void {
+    const samples = @as([*]u8, @ptrCast(@alignCast(audio_sample_ptr)));
+
+    const num_cpu_cycles = @as(f32, @floatFromInt(num_audio_samples)) / AUDIO_SAMPLE_RATE * chip8.CPU_CLOCK_SPEED;
+    chip8.emulate(num_cpu_cycles, samples, num_audio_samples);
 }
