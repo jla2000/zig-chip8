@@ -10,7 +10,7 @@ const WINDOW_WIDTH = WINDOW_SCALE * chip8.VIDEO_BUF_WIDTH;
 const WINDOW_HEIGHT = WINDOW_SCALE * chip8.VIDEO_BUF_HEIGHT;
 
 pub fn main() !void {
-    chip8.load_rom(@embedFile("roms/trip8.ch8"));
+    chip8.load_rom(@embedFile("roms/7-beep.ch8"));
 
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "zig-chip8");
     defer rl.CloseWindow();
@@ -27,11 +27,20 @@ pub fn main() !void {
     rl.InitAudioDevice();
     defer rl.CloseAudioDevice();
 
+    // Generate samples for one complete frame.
+    const sample_rate = 44100;
+    const freq = 440;
+    var samples = std.mem.zeroes([sample_rate]u8);
+    for (0..samples.len) |i| {
+        const t = @as(f32, @floatFromInt(i)) / sample_rate;
+        samples[i] = if (@sin(2.0 * std.math.pi * freq * t) > 0) 255 else 0;
+    }
+
     const beep_sound = rl.LoadSoundFromWave(rl.Wave{
-        .data = null,
-        .frameCount = 0,
-        .sampleRate = 0,
-        .sampleSize = 0,
+        .data = &samples,
+        .frameCount = samples.len,
+        .sampleRate = sample_rate,
+        .sampleSize = 8,
         .channels = 1,
     });
     defer rl.UnloadSound(beep_sound);
@@ -39,13 +48,6 @@ pub fn main() !void {
     rl.SetTargetFPS(60);
     while (!rl.WindowShouldClose()) {
         chip8.emulate();
-
-        if (chip8.should_play_sound() and !rl.IsSoundPlaying(beep_sound)) {
-            rl.PlaySound(beep_sound);
-        }
-        if (!chip8.should_play_sound() and rl.IsSoundPlaying(beep_sound)) {
-            rl.StopSound(beep_sound);
-        }
 
         rl.BeginDrawing();
         rl.UpdateTexture(display_texture, &chip8.front_buffer);
@@ -65,5 +67,13 @@ pub fn main() !void {
         }, 0, rl.WHITE);
         rl.DrawFPS(0, 0);
         rl.EndDrawing();
+
+        if (chip8.should_play_sound() and !rl.IsSoundPlaying(beep_sound)) {
+            rl.PlaySound(beep_sound);
+            std.debug.print("beep ", .{});
+        }
+        if (!chip8.should_play_sound() and rl.IsSoundPlaying(beep_sound)) {
+            rl.StopSound(beep_sound);
+        }
     }
 }
