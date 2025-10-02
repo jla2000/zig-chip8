@@ -48,7 +48,7 @@ pub fn main() !void {
         }
 
         rl.BeginDrawing();
-        rl.UpdateTexture(display_texture, &chip8.frame_buffer);
+        rl.UpdateTexture(display_texture, chip8.frame_buffer);
         rl.DrawTexturePro(display_texture, rl.Rectangle{
             .x = 0,
             .y = 0,

@@ -3,8 +3,10 @@ const std = @import("std");
 pub const FRAME_BUFFER_WIDTH = 64;
 pub const FRAME_BUFFER_HEIGHT = 32;
 
-/// If a frame has been finished rendering it is stored here.
-pub var frame_buffer = std.mem.zeroes([FRAME_BUFFER_WIDTH * FRAME_BUFFER_HEIGHT]u8);
+/// Points to the frame that should be displayed currently.
+pub var frame_buffer = &std.mem.zeroes([FRAME_BUFFER_WIDTH * FRAME_BUFFER_HEIGHT]u8);
+/// Points to the frame that is rendered currently.
+var render_buffer = &std.mem.zeroes([FRAME_BUFFER_WIDTH * FRAME_BUFFER_HEIGHT]u8);
 
 var memory = std.mem.zeroes([4096]u8);
 var stack = std.mem.zeroes([16]u16);
@@ -71,8 +73,42 @@ pub fn should_play_sound() bool {
 
 /// Execute a single instruction
 fn run_instruction() void {
-    const opcode = read_u16(pc);
-    _ = opcode;
+    const opcode_high = memory[pc];
+    const opcode_low = memory[pc + 1];
+
+    const x = opcode_high & 0xf;
+    const y = opcode_low >> 2;
+    const nn = opcode_low;
+    const nnn = read_u16(pc) & 0xfff;
+
+    _ = x;
+    _ = y;
+    _ = nn;
+
+    switch (opcode_high >> 4) {
+        0x0 => switch (nnn) {
+            0x0E0 => {}, // clear display,
+            0x0EE => {}, // return,
+            else => unreachable, // call machine code routine
+        },
+        0x1 => {}, // goto nnn
+        0x2 => {}, // call nnn
+        0x3 => {}, // if Vx == NN
+        0x4 => {}, // if Vx != NN
+        0x5 => {}, // if Vx == Vy
+        0x6 => {}, // Vx = nn
+        0x7 => {},
+        0x8 => {},
+        0x9 => {},
+        0xa => {},
+        0xb => {},
+        0xc => {},
+        0xd => {},
+        0xe => {},
+        0xf => {},
+        else => unreachable,
+    }
+
     // std.debug.print("0x{x:04}: 0x{x:02}\n", .{ pc, opcode });
     pc = @min(pc + 2, memory.len - 2); // TODO: implement out-of-bounds handling
 }
