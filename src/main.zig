@@ -5,12 +5,12 @@ const rl = @cImport({
     @cInclude("raylib.h");
 });
 
-const WINDOW_SCALE = 15;
+const WINDOW_SCALE = 10;
 const WINDOW_WIDTH = WINDOW_SCALE * chip8.VIDEO_BUF_WIDTH;
 const WINDOW_HEIGHT = WINDOW_SCALE * chip8.VIDEO_BUF_HEIGHT;
 
 pub fn main() !void {
-    chip8.load_rom(@embedFile("5-quirks.ch8"));
+    chip8.load_rom(@embedFile("trip8.ch8"));
 
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "zig-chip8");
     defer rl.CloseWindow();

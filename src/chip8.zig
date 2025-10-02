@@ -211,11 +211,11 @@ fn run_instruction() void {
                 @memcpy(memory[idx .. idx + 3], &val);
             },
             // Dump registers
-            0x55 => for (0..x) |offset| {
+            0x55 => for (0..x + 1) |offset| {
                 memory[idx + offset] = regs[offset];
             },
             // Load registers
-            0x65 => for (0..x) |offset| {
+            0x65 => for (0..x + 1) |offset| {
                 regs[offset] = memory[idx + offset];
             },
             else => unreachable,
@@ -267,9 +267,7 @@ fn draw_sprite(x: u8, y: u8, height: u8) void {
 
         for (0..8) |x_offset| {
             if (get_bit(sprite_byte, @intCast(7 - x_offset))) {
-                const y_pos = (y + y_offset) % VIDEO_BUF_HEIGHT;
-                const x_pos = (x + x_offset) % VIDEO_BUF_WIDTH;
-                const buffer_idx = y_pos * VIDEO_BUF_WIDTH + x_pos;
+                const buffer_idx = (y + y_offset) * VIDEO_BUF_WIDTH + (x + x_offset);
 
                 if (back_buffer[buffer_idx] == 255) {
                     // Collision detected.
