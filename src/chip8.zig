@@ -20,6 +20,11 @@ var stack = std.mem.zeroes([16]u16);
 /// General purpose registers
 var regs = std.mem.zeroes([16]u8);
 
+/// Keyboard state
+var keys = std.mem.zeroes([16]bool);
+var wait_for_key = false;
+var wait_result: ?u8 = null;
+
 /// Stack pointer
 var sp: u8 = 0;
 /// Program counter
@@ -63,13 +68,13 @@ pub fn load_rom(rom: []const u8) void {
 /// Emulate the CPU.
 /// Should be called with a tickrate of 60Hz.
 pub fn emulate() void {
+    sound_timer = sound_timer -| 1;
+    delay_timer = delay_timer -| 1;
+
     // Should result in a tickrate of 600Hz.
     for (0..10) |_| {
         run_instruction();
     }
-
-    sound_timer = sound_timer -| 1;
-    delay_timer = delay_timer -| 1;
 }
 
 /// Indicates whether a beeping sound should be played currently.
@@ -77,15 +82,24 @@ pub fn should_play_sound() bool {
     return sound_timer > 0;
 }
 
+/// Notify that the state of a key has changed.
+pub fn set_key_state(key_idx: u8, pressed: bool) void {
+    keys[key_idx] = pressed;
+    if (wait_for_key) {
+        wait_result = key_idx;
+    }
+}
+
 /// Execute a single instruction
 fn run_instruction() void {
     const opcode_high = memory[pc];
     const opcode_low = memory[pc + 1];
 
-    std.debug.print("0x{x:04}: 0x{x:02}{x:02}\n", .{ pc, opcode_high, opcode_low });
+    // std.debug.print("0x{x:04}: 0x{x:02}{x:02}\n", .{ pc, opcode_high, opcode_low });
 
     const x = opcode_high & 0xf;
     const y = opcode_low >> 2;
+    const n = opcode_low & 0xf;
     const nn = opcode_low;
     const nnn = read_u16(pc) & 0xfff;
 
@@ -123,16 +137,61 @@ fn run_instruction() void {
             pc += 2;
         },
         // Vx = nn
-        0x6 => {},
-        0x7 => {},
-        0x8 => {},
+        0x6 => regs[x] = nn,
+        // Vx += nn
+        0x7 => regs[x] += nn,
+        0x8 => switch (n) {
+            // Vx = Vy
+            0 => regs[x] = regs[y],
+            // Vx != Vy
+            1 => regs[x] |= regs[y],
+            // Vx &= Vy
+            2 => regs[x] &= regs[y],
+            // Vx ^= Vy
+            3 => regs[x] ^= regs[y],
+            // Vx += Vy
+            4 => regs[x] += regs[y],
+            else => unreachable,
+        },
         0x9 => {},
         0xa => {},
         0xb => {},
         0xc => {},
         0xd => {},
         0xe => {},
-        0xf => {},
+        0xf => switch (nn) {
+            // Wait for key press
+            0x0A => {
+                wait_for_key = true;
+                if (wait_result) |key_idx| {
+                    regs[x] = key_idx;
+                    wait_for_key = false;
+                    wait_result = null;
+                } else {
+                    // halt until key is pressed.
+                    pc -= 2;
+                }
+            },
+            // Set delay timer
+            0x15 => delay_timer = regs[x],
+            // Set sound timer
+            0x18 => sound_timer = regs[x],
+            // I += Vx
+            0x1E => idx += regs[x],
+            // Select font character (each is 5 bytes)
+            0x29 => idx = regs[x] * 5,
+            // Store bcd
+            0x33 => unreachable,
+            // Dump registers
+            0x55 => for (0..x) |offset| {
+                memory[idx + offset] = regs[offset];
+            },
+            // Load registers
+            0x65 => for (0..x) |offset| {
+                regs[offset] = memory[idx + offset];
+            },
+            else => unreachable,
+        },
         else => unreachable,
     }
 }
