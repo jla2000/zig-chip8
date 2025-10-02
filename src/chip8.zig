@@ -5,13 +5,13 @@ pub const FRAME_BUFFER_HEIGHT = 32;
 
 const FRAME_BUFFER_SIZE = FRAME_BUFFER_WIDTH * FRAME_BUFFER_HEIGHT;
 
-/// Two buffers that are used for presenting and rendering.
+/// Two buffers that contain video memory.
 var front_buffer = std.mem.zeroes([FRAME_BUFFER_SIZE]u8);
 var back_buffer = std.mem.zeroes([FRAME_BUFFER_SIZE]u8);
 
-/// Points to the frame that should be displayed currently.
+/// Points to the video memory that should be displayed currently.
 pub var frame_buffer = &front_buffer;
-/// Points to the frame that is rendered currently.
+/// Points to the video memory that should be used for rendering.
 var render_buffer = &back_buffer;
 
 var memory = std.mem.zeroes([4096]u8);
