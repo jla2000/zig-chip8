@@ -5,10 +5,13 @@ const rl = @cImport({
     @cInclude("raylib.h");
 });
 
-const AUDIO_SAMPLE_RATE = 44100;
+const AUDIO_SAMPLE_RATE = 48000;
 const WINDOW_SCALE = 10;
 const WINDOW_WIDTH = WINDOW_SCALE * chip8.VIDEO_BUF_WIDTH;
 const WINDOW_HEIGHT = WINDOW_SCALE * chip8.VIDEO_BUF_HEIGHT;
+
+var video_buf = std.mem.zeroes([chip8.VIDEO_BUF_SIZE]u8);
+var audio_buf = std.mem.zeroes([735]u8);
 
 pub fn main() !void {
     chip8.load_rom(@embedFile("roms/7-beep.ch8"));
@@ -36,10 +39,8 @@ pub fn main() !void {
 
     rl.SetTargetFPS(60);
     while (!rl.WindowShouldClose()) {
-        // chip8.emulate();
-
         rl.BeginDrawing();
-        rl.UpdateTexture(display_texture, &chip8.front_buffer);
+        rl.UpdateTexture(display_texture, &video_buf);
         rl.DrawTexturePro(display_texture, rl.Rectangle{
             .x = 0,
             .y = 0,
@@ -55,14 +56,10 @@ pub fn main() !void {
             .y = 0,
         }, 0, rl.WHITE);
         rl.EndDrawing();
-
-        // if (chip8.should_play_sound() and rl.IsAudioStreamProcessed(audio_stream)) {}
     }
 }
 
 fn audio_stream_callback(audio_sample_ptr: ?*anyopaque, num_audio_samples: c_uint) callconv(.c) void {
-    const samples = @as([*]u8, @ptrCast(@alignCast(audio_sample_ptr)));
-
-    const num_cpu_cycles = @as(f32, @floatFromInt(num_audio_samples)) / AUDIO_SAMPLE_RATE * chip8.CPU_CLOCK_SPEED;
-    chip8.emulate(num_cpu_cycles, samples, num_audio_samples);
+    const audio_samples = @as([*]u8, @ptrCast(audio_sample_ptr))[0..num_audio_samples];
+    chip8.emulate(&video_buf, audio_samples);
 }

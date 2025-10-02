@@ -5,13 +5,18 @@ pub const TIMER_CLOCK_SPEED = 60;
 
 pub const VIDEO_BUF_WIDTH = 64;
 pub const VIDEO_BUF_HEIGHT = 32;
+pub const VIDEO_BUF_SIZE = VIDEO_BUF_WIDTH * VIDEO_BUF_HEIGHT;
 
-const VIDEO_BUF_SIZE = VIDEO_BUF_WIDTH * VIDEO_BUF_HEIGHT;
+const AUDIO_BUF_SIZE = 1024;
+const AUDIO_SAMPLE_RATE = 48000;
+const AUDIO_SAMPLES_PER_CYCLE = AUDIO_SAMPLE_RATE / CPU_CLOCK_SPEED;
 
-/// Video memory that should be displayed currently.
-pub var front_buffer = std.mem.zeroes([VIDEO_BUF_SIZE]u8);
-/// Video memory that should be used for rendering.
-var back_buffer = std.mem.zeroes([VIDEO_BUF_SIZE]u8);
+/// Video memory that is used for rendering.
+var video_buf = std.mem.zeroes([VIDEO_BUF_SIZE]u8);
+
+/// Audio buffer that is filled with generated audio samples
+var audio_buf = std.mem.zeroes([AUDIO_BUF_SIZE]u8);
+var audio_samples = std.ArrayListUnmanaged(u8).initBuffer(&audio_buf);
 
 var memory = std.mem.zeroes([4096]u8);
 var stack = std.mem.zeroes([16]u16);
@@ -33,7 +38,6 @@ var sound_timer: u8 = 0;
 var delay_timer: u8 = 0;
 
 var cycle_counter: usize = 0;
-var pending_cycles: f32 = 0;
 
 /// Load the given bytes into memory.
 /// Should be called only once (reset not yet implemented).
@@ -66,37 +70,24 @@ pub fn load_rom(rom: []const u8) void {
 }
 
 /// Emulate the CPU.
-pub fn emulate(num_cycles: f32, audio_samples: [*]u8, num_audio_samples: usize) void {
-    pending_cycles += num_cycles;
-
-    const samples_per_cycle = num_audio_samples / @as(usize, @intFromFloat(pending_cycles));
-    var generated_samples: usize = 0;
-
-    while (pending_cycles > 0.0) {
-        run_instruction();
-
-        if (should_play_sound()) {
-            for (0..samples_per_cycle) |_| {
-                const freq = 440;
-                const t = @as(f32, @floatFromInt(generated_samples)) / 44100.0;
-                audio_samples[generated_samples] = if (@sin(2.0 * std.math.pi * freq * t) > 0) 100 else 0;
-                generated_samples += 1;
-            }
-        }
-
+pub fn emulate(video_output_buf: []u8, audio_output_buf: []u8) void {
+    // Emulate cpu until enough audio samples have been generated
+    while (audio_samples.items.len < audio_output_buf.len) {
+        // Handle timers
         if (cycle_counter % (CPU_CLOCK_SPEED / TIMER_CLOCK_SPEED) == 0) {
             sound_timer -|= 1;
             delay_timer -|= 1;
         }
 
-        cycle_counter +%= 1;
-        pending_cycles -= 1.0;
-    }
-}
+        run_instruction(video_output_buf);
+        generate_audio_samples();
 
-/// Indicates whether a beeping sound should be played currently.
-pub fn should_play_sound() bool {
-    return sound_timer > 0;
+        cycle_counter += 1;
+    }
+
+    // Fill given audio buffer
+    @memcpy(audio_output_buf, audio_samples.items[0..audio_output_buf.len]);
+    remove_audio_samples(audio_output_buf.len);
 }
 
 /// Notify that a key has been pressed.
@@ -109,12 +100,28 @@ pub fn release_key(key: u8) void {
     keys[key] = false;
 }
 
+/// Removes audio samples after they have ceen consumed
+fn remove_audio_samples(count: usize) void {
+    const remaining_samples = audio_samples.items.len - count;
+    @memcpy(audio_samples.items[0..remaining_samples], audio_samples.items[count .. count + remaining_samples]);
+    audio_samples.items.len = remaining_samples;
+}
+
+/// Generate audio samples for one cycle
+fn generate_audio_samples() void {
+    for (0..AUDIO_SAMPLES_PER_CYCLE) |i| {
+        const freq = 440;
+        const t = @as(f32, @floatFromInt(i)) / AUDIO_SAMPLE_RATE;
+        const sample: u8 = if (@sin(2.0 * std.math.pi * freq * t) > 0) 100 else 0;
+
+        audio_samples.appendBounded(if (sound_timer > 0) sample else 0) catch unreachable;
+    }
+}
+
 /// Execute a single instruction
-fn run_instruction() void {
+fn run_instruction(video_output_buf: []u8) void {
     const opcode_high = memory[pc];
     const opcode_low = memory[pc + 1];
-
-    // std.debug.print("0x{x:04}: 0x{x:02}{x:02}\n", .{ pc, opcode_high, opcode_low });
 
     const x = opcode_high & 0xf;
     const y = opcode_low >> 4;
@@ -128,8 +135,8 @@ fn run_instruction() void {
         0x0 => switch (nnn) {
             // Clear display
             0x0E0 => {
-                @memset(&back_buffer, 0);
-                @memcpy(&front_buffer, &back_buffer);
+                @memset(&video_buf, 0);
+                @memcpy(video_output_buf, &video_buf);
             },
             // Return
             0x0EE => pc = pop_stack(),
@@ -203,7 +210,10 @@ fn run_instruction() void {
         // Generate random number
         0xc => regs[x] = std.crypto.random.int(u8) & nn,
         // Draw
-        0xd => draw_sprite(regs[x], regs[y], n),
+        0xd => {
+            draw_sprite(regs[x], regs[y], n);
+            @memcpy(video_output_buf, &video_buf);
+        },
         0xe => switch (nn) {
             // if (key == Vx)
             0x9E => if (keys[regs[x] & 0xf]) {
@@ -292,19 +302,16 @@ fn draw_sprite(x: u8, y: u8, height: u8) void {
             if (get_bit(sprite_byte, @intCast(7 - x_offset))) {
                 const buffer_idx = (y + y_offset) * VIDEO_BUF_WIDTH + (x + x_offset);
 
-                if (back_buffer[buffer_idx] == 255) {
+                if (video_buf[buffer_idx] == 255) {
                     // Collision detected.
                     regs[0xf] = 1;
                 }
 
                 // Invert pixel
-                back_buffer[buffer_idx] ^= 255;
+                video_buf[buffer_idx] ^= 255;
             }
         }
     }
-
-    // Present new frame
-    @memcpy(&front_buffer, &back_buffer);
 }
 
 fn bcd(value: u8) [3]u8 {
