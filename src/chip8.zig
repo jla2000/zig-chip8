@@ -57,7 +57,7 @@ pub fn load_rom(rom: []const u8) void {
 pub fn emulate() void {
     // Should result in a tickrate of 600Hz.
     for (0..10) |_| {
-        emulate_cycle();
+        run_instruction();
     }
 
     sound_timer = sound_timer -| 1;
@@ -70,9 +70,14 @@ pub fn should_play_sound() bool {
 }
 
 /// Execute a single instruction
-fn emulate_cycle() void {
-    const opcode = @as(u16, memory[pc]) << 8 | @as(u16, memory[pc + 1]);
+fn run_instruction() void {
+    const opcode = read_u16(pc);
     _ = opcode;
     // std.debug.print("0x{x:04}: 0x{x:02}\n", .{ pc, opcode });
     pc = @min(pc + 2, memory.len - 2); // TODO: implement out-of-bounds handling
+}
+
+/// Read an u16 from the given address in memory.
+fn read_u16(address: u16) u16 {
+    return @as(u16, memory[address]) << 8 | @as(u16, memory[address + 1]);
 }

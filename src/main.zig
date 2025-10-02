@@ -1,24 +1,24 @@
 const std = @import("std");
-const cpu = @import("cpu.zig");
+const chip8 = @import("chip8.zig");
 
 const rl = @cImport({
     @cInclude("raylib.h");
 });
 
 const WINDOW_SCALE = 20;
-const WINDOW_WIDTH = WINDOW_SCALE * cpu.FRAME_BUFFER_WIDTH;
-const WINDOW_HEIGHT = WINDOW_SCALE * cpu.FRAME_BUFFER_HEIGHT;
+const WINDOW_WIDTH = WINDOW_SCALE * chip8.FRAME_BUFFER_WIDTH;
+const WINDOW_HEIGHT = WINDOW_SCALE * chip8.FRAME_BUFFER_HEIGHT;
 
 pub fn main() !void {
-    cpu.load_rom(@embedFile("trip8.ch8"));
+    chip8.load_rom(@embedFile("trip8.ch8"));
 
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "zig-chip8");
     defer rl.CloseWindow();
 
     const display_texture = rl.LoadTextureFromImage(rl.Image{
         .data = null,
-        .width = cpu.FRAME_BUFFER_WIDTH,
-        .height = cpu.FRAME_BUFFER_HEIGHT,
+        .width = chip8.FRAME_BUFFER_WIDTH,
+        .height = chip8.FRAME_BUFFER_HEIGHT,
         .format = rl.PIXELFORMAT_UNCOMPRESSED_GRAYSCALE,
         .mipmaps = 1,
     });
@@ -38,17 +38,17 @@ pub fn main() !void {
 
     rl.SetTargetFPS(60);
     while (!rl.WindowShouldClose()) {
-        cpu.emulate();
+        chip8.emulate();
 
-        if (cpu.should_play_sound() and !rl.IsSoundPlaying(beep_sound)) {
+        if (chip8.should_play_sound() and !rl.IsSoundPlaying(beep_sound)) {
             rl.PlaySound(beep_sound);
         }
-        if (!cpu.should_play_sound() and rl.IsSoundPlaying(beep_sound)) {
+        if (!chip8.should_play_sound() and rl.IsSoundPlaying(beep_sound)) {
             rl.StopSound(beep_sound);
         }
 
         rl.BeginDrawing();
-        rl.UpdateTexture(display_texture, &cpu.frame_buffer);
+        rl.UpdateTexture(display_texture, &chip8.frame_buffer);
         rl.DrawTexturePro(display_texture, rl.Rectangle{
             .x = 0,
             .y = 0,
