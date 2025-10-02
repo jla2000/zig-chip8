@@ -82,12 +82,17 @@ pub fn should_play_sound() bool {
     return sound_timer > 0;
 }
 
-/// Notify that the state of a key has changed.
-pub fn set_key_state(key_idx: u8, pressed: bool) void {
-    keys[key_idx] = pressed;
+/// Notify that a key has been pressed.
+pub fn press_key(key: u8) void {
+    keys[key] = true;
     if (wait_for_key) {
-        wait_result = key_idx;
+        wait_result = key;
     }
+}
+
+/// Notify that a key has been released.
+pub fn release_key(key: u8) void {
+    keys[key] = false;
 }
 
 /// Execute a single instruction
