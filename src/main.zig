@@ -48,7 +48,6 @@ pub fn main() !void {
         }
 
         rl.BeginDrawing();
-        rl.ClearBackground(rl.BLACK);
         rl.UpdateTexture(display_texture, &cpu.frame_buffer);
         rl.DrawTexturePro(display_texture, rl.Rectangle{
             .x = 0,
