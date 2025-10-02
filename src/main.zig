@@ -5,20 +5,20 @@ const rl = @cImport({
     @cInclude("raylib.h");
 });
 
-const WINDOW_SCALE = 20;
-const WINDOW_WIDTH = WINDOW_SCALE * chip8.FRAME_BUFFER_WIDTH;
-const WINDOW_HEIGHT = WINDOW_SCALE * chip8.FRAME_BUFFER_HEIGHT;
+const WINDOW_SCALE = 15;
+const WINDOW_WIDTH = WINDOW_SCALE * chip8.VIDEO_BUF_WIDTH;
+const WINDOW_HEIGHT = WINDOW_SCALE * chip8.VIDEO_BUF_HEIGHT;
 
 pub fn main() !void {
-    chip8.load_rom(@embedFile("trip8.ch8"));
+    chip8.load_rom(@embedFile("5-quirks.ch8"));
 
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "zig-chip8");
     defer rl.CloseWindow();
 
     const display_texture = rl.LoadTextureFromImage(rl.Image{
         .data = null,
-        .width = chip8.FRAME_BUFFER_WIDTH,
-        .height = chip8.FRAME_BUFFER_HEIGHT,
+        .width = chip8.VIDEO_BUF_WIDTH,
+        .height = chip8.VIDEO_BUF_HEIGHT,
         .format = rl.PIXELFORMAT_UNCOMPRESSED_GRAYSCALE,
         .mipmaps = 1,
     });
@@ -48,7 +48,7 @@ pub fn main() !void {
         }
 
         rl.BeginDrawing();
-        rl.UpdateTexture(display_texture, chip8.frame_buffer);
+        rl.UpdateTexture(display_texture, &chip8.front_buffer);
         rl.DrawTexturePro(display_texture, rl.Rectangle{
             .x = 0,
             .y = 0,
