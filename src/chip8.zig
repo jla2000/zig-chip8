@@ -22,8 +22,6 @@ var regs = std.mem.zeroes([16]u8);
 
 /// Keyboard state
 var keys = std.mem.zeroes([16]bool);
-var wait_for_key = false;
-var wait_result: ?u8 = null;
 
 /// Stack pointer
 var sp: u8 = 0;
@@ -85,9 +83,6 @@ pub fn should_play_sound() bool {
 /// Notify that a key has been pressed.
 pub fn press_key(key: u8) void {
     keys[key] = true;
-    if (wait_for_key) {
-        wait_result = key;
-    }
 }
 
 /// Notify that a key has been released.
@@ -166,17 +161,7 @@ fn run_instruction() void {
         0xe => {},
         0xf => switch (nn) {
             // Wait for key press
-            0x0A => {
-                wait_for_key = true;
-                if (wait_result) |key_idx| {
-                    regs[x] = key_idx;
-                    wait_for_key = false;
-                    wait_result = null;
-                } else {
-                    // halt until key is pressed.
-                    pc -= 2;
-                }
-            },
+            0x0A => regs[x] = wait_for_key(),
             // Set delay timer
             0x15 => delay_timer = regs[x],
             // Set sound timer
@@ -199,6 +184,10 @@ fn run_instruction() void {
         },
         else => unreachable,
     }
+}
+
+fn wait_for_key() u8 {
+    unreachable;
 }
 
 /// Swap buffers
