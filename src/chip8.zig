@@ -152,7 +152,9 @@ fn run_instruction() void {
             // Return
             0x0EE => pc = pop_stack(),
             // call machine code routine
-            else => unreachable,
+            else => {
+                std.debug.print("WARNING: EMULATOR: Tried to called machine code routine\n", .{});
+            },
         },
         // goto nnn
         0x1 => pc = nnn,

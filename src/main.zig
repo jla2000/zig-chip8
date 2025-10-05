@@ -16,6 +16,9 @@ var front_buf_idx: u8 = 0;
 var back_buf_idx: u8 = 1;
 var mutex = std.Thread.Mutex{};
 
+var key_buf = std.mem.zeroes([1024]u8);
+var key_queue = std.Deque(u8).initBuffer(&key_buf);
+
 pub fn main() !void {
     var args = std.process.args();
     std.debug.assert(args.skip());
