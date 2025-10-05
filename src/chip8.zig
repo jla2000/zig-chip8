@@ -37,6 +37,7 @@ var idx: u16 = 0;
 var sound_timer: u8 = 0;
 var delay_timer: u8 = 0;
 
+/// Counts how many cycles were executed
 var cycle_counter: usize = 0;
 
 /// Load the given bytes into memory.

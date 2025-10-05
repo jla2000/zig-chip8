@@ -16,16 +16,8 @@ pub fn main() !void {
     var args = std.process.args();
     std.debug.assert(args.skip());
 
-    const filename = args.next() orelse {
-        std.debug.print("Usage: zig-chip8 <ROM>\n", .{});
-        return;
-    };
-
-    const allocator = std.heap.page_allocator;
-    const rom_file = try std.fs.cwd().openFile(filename, .{});
-    const rom = try rom_file.readToEndAlloc(allocator, 4096);
-    defer allocator.free(rom);
-
+    // Load trip8 on default
+    const rom = if (args.next()) |filename| try read_rom(filename) else @embedFile("roms/trip8.ch8");
     chip8.load_rom(rom);
 
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "zig-chip8");
@@ -74,4 +66,10 @@ pub fn main() !void {
 fn audio_stream_callback(audio_sample_ptr: ?*anyopaque, num_audio_samples: c_uint) callconv(.c) void {
     const audio_samples = @as([*]u8, @ptrCast(audio_sample_ptr))[0..num_audio_samples];
     chip8.emulate(&video_buf, audio_samples);
+}
+
+fn read_rom(filename: []const u8) ![]u8 {
+    const allocator = std.heap.page_allocator;
+    const rom_file = try std.fs.cwd().openFile(filename, .{});
+    return try rom_file.readToEndAlloc(allocator, 4096);
 }
