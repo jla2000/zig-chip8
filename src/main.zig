@@ -9,8 +9,11 @@ const WINDOW_SCALE = 10;
 const WINDOW_WIDTH = WINDOW_SCALE * chip8.VIDEO_BUF_WIDTH;
 const WINDOW_HEIGHT = WINDOW_SCALE * chip8.VIDEO_BUF_HEIGHT;
 
-var video_buf = std.mem.zeroes([chip8.VIDEO_BUF_SIZE]u8);
-var audio_buf = std.mem.zeroes([735]u8);
+var mutex = std.Thread.Mutex{};
+const FrameBuffer = [chip8.VIDEO_BUF_SIZE]u8;
+var frame_buffers = std.mem.zeroes([2]FrameBuffer);
+var read_index: u8 = 0;
+var write_index: u8 = 1;
 
 pub fn main() !void {
     var args = std.process.args();
@@ -43,8 +46,11 @@ pub fn main() !void {
 
     rl.SetTargetFPS(60);
     while (!rl.WindowShouldClose()) {
+        mutex.lock();
+        rl.UpdateTexture(display_texture, &frame_buffers[read_index]);
+        mutex.unlock();
+
         rl.BeginDrawing();
-        rl.UpdateTexture(display_texture, &video_buf);
         rl.DrawTexturePro(display_texture, rl.Rectangle{
             .x = 0,
             .y = 0,
@@ -65,7 +71,11 @@ pub fn main() !void {
 
 fn audio_stream_callback(audio_sample_ptr: ?*anyopaque, num_audio_samples: c_uint) callconv(.c) void {
     const audio_samples = @as([*]u8, @ptrCast(audio_sample_ptr))[0..num_audio_samples];
-    chip8.emulate(&video_buf, audio_samples);
+    chip8.emulate(&frame_buffers[write_index], audio_samples);
+
+    mutex.lock();
+    std.mem.swap(u8, &read_index, &write_index);
+    mutex.unlock();
 }
 
 fn read_rom(filename: []const u8) ![]u8 {

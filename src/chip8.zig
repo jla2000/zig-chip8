@@ -14,6 +14,9 @@ const AUDIO_SAMPLES_PER_CYCLE = AUDIO_SAMPLE_RATE / CPU_CLOCK_SPEED;
 /// Video memory that is used for rendering.
 var video_buf = std.mem.zeroes([VIDEO_BUF_SIZE]u8);
 
+/// Contains the last full frame
+var last_rendered_frame = std.mem.zeroes([VIDEO_BUF_SIZE]u8);
+
 /// Audio buffer that is filled with generated audio samples
 var audio_buf = std.mem.zeroes([AUDIO_BUF_SIZE]u8);
 var audio_samples = std.ArrayListUnmanaged(u8).initBuffer(&audio_buf);
@@ -81,7 +84,7 @@ pub fn emulate(video_output_buf: []u8, audio_output_buf: []u8) void {
             delay_timer -|= 1;
         }
 
-        run_instruction(video_output_buf);
+        run_instruction();
         generate_audio_samples();
 
         cycle_counter += 1;
@@ -90,6 +93,9 @@ pub fn emulate(video_output_buf: []u8, audio_output_buf: []u8) void {
     // Fill given audio buffer
     @memcpy(audio_output_buf, audio_samples.items[0..audio_output_buf.len]);
     remove_audio_samples(audio_output_buf.len);
+
+    // Fill given video buffer
+    @memcpy(video_output_buf, &last_rendered_frame);
 }
 
 /// Notify that a key has been pressed.
@@ -121,7 +127,7 @@ fn generate_audio_samples() void {
 }
 
 /// Execute a single instruction
-fn run_instruction(video_output_buf: []u8) void {
+fn run_instruction() void {
     const opcode_high = memory[pc];
     const opcode_low = memory[pc + 1];
 
@@ -138,7 +144,7 @@ fn run_instruction(video_output_buf: []u8) void {
             // Clear display
             0x0E0 => {
                 @memset(&video_buf, 0);
-                @memcpy(video_output_buf, &video_buf);
+                @memcpy(&last_rendered_frame, &video_buf);
             },
             // Return
             0x0EE => pc = pop_stack(),
@@ -214,7 +220,7 @@ fn run_instruction(video_output_buf: []u8) void {
         // Draw
         0xd => {
             draw_sprite(regs[x], regs[y], n);
-            @memcpy(video_output_buf, &video_buf);
+            @memcpy(&last_rendered_frame, &video_buf);
         },
         0xe => switch (nn) {
             // if (key == Vx)
@@ -260,7 +266,9 @@ fn run_instruction(video_output_buf: []u8) void {
 }
 
 fn wait_for_key() u8 {
-    unreachable;
+    // unreachable;
+    // pc -= 2;
+    return 0;
 }
 
 /// Read an u16 from the given address in memory.
