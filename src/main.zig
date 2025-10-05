@@ -5,7 +5,6 @@ const rl = @cImport({
     @cInclude("raylib.h");
 });
 
-const AUDIO_SAMPLE_RATE = 48000;
 const WINDOW_SCALE = 10;
 const WINDOW_WIDTH = WINDOW_SCALE * chip8.VIDEO_BUF_WIDTH;
 const WINDOW_HEIGHT = WINDOW_SCALE * chip8.VIDEO_BUF_HEIGHT;
@@ -14,7 +13,20 @@ var video_buf = std.mem.zeroes([chip8.VIDEO_BUF_SIZE]u8);
 var audio_buf = std.mem.zeroes([735]u8);
 
 pub fn main() !void {
-    chip8.load_rom(@embedFile("roms/7-beep.ch8"));
+    var args = std.process.args();
+    std.debug.assert(args.skip());
+
+    const filename = args.next() orelse {
+        std.debug.print("Usage: zig-chip8 <ROM>\n", .{});
+        return;
+    };
+
+    const allocator = std.heap.page_allocator;
+    const rom_file = try std.fs.cwd().openFile(filename, .{});
+    const rom = try rom_file.readToEndAlloc(allocator, 4096);
+    defer allocator.free(rom);
+
+    chip8.load_rom(rom);
 
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "zig-chip8");
     defer rl.CloseWindow();

@@ -70,6 +70,7 @@ pub fn load_rom(rom: []const u8) void {
 }
 
 /// Emulate the CPU.
+/// This function is driven by the amount of requested audio samples.
 pub fn emulate(video_output_buf: []u8, audio_output_buf: []u8) void {
     // Emulate cpu until enough audio samples have been generated
     while (audio_samples.items.len < audio_output_buf.len) {
