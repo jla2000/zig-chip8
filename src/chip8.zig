@@ -1,7 +1,8 @@
 const std = @import("std");
 
-pub const CPU_CLOCK_SPEED = 600;
-pub const TIMER_CLOCK_SPEED = 60;
+pub const SPEED_MODIFIER = 1;
+pub const CPU_CLOCK_SPEED = 600 * SPEED_MODIFIER;
+pub const TIMER_CLOCK_SPEED = 60 * SPEED_MODIFIER;
 
 pub const VIDEO_BUF_WIDTH = 64;
 pub const VIDEO_BUF_HEIGHT = 32;
@@ -11,7 +12,6 @@ pub const AUDIO_SAMPLE_RATE = 48000;
 pub const AUDIO_SAMPLE_SIZE = 8;
 pub const AUDIO_CHANNELS = 1;
 
-const AUDIO_BUF_SIZE = 1024;
 const AUDIO_SAMPLES_PER_CYCLE = AUDIO_SAMPLE_RATE / CPU_CLOCK_SPEED;
 
 /// Video memory that is used for rendering.
@@ -21,7 +21,7 @@ var video_buf = std.mem.zeroes([VIDEO_BUF_SIZE]u8);
 var last_rendered_frame = std.mem.zeroes([VIDEO_BUF_SIZE]u8);
 
 /// Audio buffer that is filled with generated audio samples
-var audio_buf = std.mem.zeroes([AUDIO_BUF_SIZE]u8);
+var audio_buf = std.mem.zeroes([1024]u8);
 var audio_samples = std.ArrayListUnmanaged(u8).initBuffer(&audio_buf);
 
 var memory = std.mem.zeroes([4096]u8);
