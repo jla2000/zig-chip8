@@ -15,9 +15,10 @@
 
         # zig.hook broken:
         # https://github.com/NixOS/nixpkgs/issues/247719
+        buildPhase = "zig build --global-cache-dir .";
         installPhase = ''
-          mkdir -p $out
-          zig build -p $out --global-cache-dir .
+          mkdir -p $out/bin
+          mv ./zig-out/bin/* $out/bin/
         '';
       };
 
