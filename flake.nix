@@ -7,9 +7,23 @@
       pkgs = inputs.nixpkgs.legacyPackages.${system};
     in
     {
+      packages.${system}.default = pkgs.stdenv.mkDerivation {
+        name = "zig-chip8";
+        src = pkgs.lib.cleanSource ./.;
+        buildInputs = [ pkgs.raylib ];
+        nativeBuildInputs = [ pkgs.zig ];
+
+        # zig.hook broken:
+        # https://github.com/NixOS/nixpkgs/issues/247719
+        installPhase = ''
+          mkdir -p $out
+          zig build -p $out --global-cache-dir .
+        '';
+      };
+
       devShells.${system}.default = pkgs.mkShell {
-        buildInputs = with pkgs; [ raylib ];
-        nativeBuildInputs = with pkgs; [ zig ];
+        buildInputs = [ pkgs.raylib ];
+        nativeBuildInputs = [ pkgs.zig ];
       };
     };
 }
