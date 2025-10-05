@@ -20,11 +20,13 @@ var key_buf = std.mem.zeroes([1024]u8);
 var key_queue = std.Deque(u8).initBuffer(&key_buf);
 
 pub fn main() !void {
-    var args = std.process.args();
+    const allocator = std.heap.page_allocator;
+    var args = try std.process.ArgIterator.initWithAllocator(allocator);
+    defer args.deinit();
     std.debug.assert(args.skip());
 
     // Load trip8 on default
-    const rom = if (args.next()) |filename| try read_rom(filename) else @embedFile("roms/trip8.ch8");
+    const rom = if (args.next()) |filename| try read_rom(allocator, filename) else @embedFile("roms/trip8.ch8");
     chip8.load_rom(rom);
 
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "zig-chip8");
@@ -82,8 +84,7 @@ fn audio_stream_callback(audio_sample_ptr: ?*anyopaque, num_audio_samples: c_uin
     mutex.unlock();
 }
 
-fn read_rom(filename: []const u8) ![]u8 {
-    const allocator = std.heap.page_allocator;
+fn read_rom(allocator: std.mem.Allocator, filename: []const u8) ![]u8 {
     const rom_file = try std.fs.cwd().openFile(filename, .{});
     return try rom_file.readToEndAlloc(allocator, 4096);
 }
