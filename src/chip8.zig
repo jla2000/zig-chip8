@@ -7,8 +7,8 @@ pub const VIDEO_BUF_WIDTH = 64;
 pub const VIDEO_BUF_HEIGHT = 32;
 pub const VIDEO_BUF_SIZE = VIDEO_BUF_WIDTH * VIDEO_BUF_HEIGHT;
 
+pub const AUDIO_SAMPLE_RATE = 48000;
 const AUDIO_BUF_SIZE = 1024;
-const AUDIO_SAMPLE_RATE = 48000;
 const AUDIO_SAMPLES_PER_CYCLE = AUDIO_SAMPLE_RATE / CPU_CLOCK_SPEED;
 
 /// Video memory that is used for rendering.

@@ -43,7 +43,7 @@ pub fn main() !void {
     rl.InitAudioDevice();
     defer rl.CloseAudioDevice();
 
-    const audio_stream = rl.LoadAudioStream(AUDIO_SAMPLE_RATE, 8, 1);
+    const audio_stream = rl.LoadAudioStream(chip8.AUDIO_SAMPLE_RATE, 8, 1);
     defer rl.UnloadAudioStream(audio_stream);
 
     rl.SetAudioStreamCallback(audio_stream, audio_stream_callback);
