@@ -9,11 +9,12 @@ const WINDOW_SCALE = 10;
 const WINDOW_WIDTH = WINDOW_SCALE * chip8.VIDEO_BUF_WIDTH;
 const WINDOW_HEIGHT = WINDOW_SCALE * chip8.VIDEO_BUF_HEIGHT;
 
-var mutex = std.Thread.Mutex{};
 const FrameBuffer = [chip8.VIDEO_BUF_SIZE]u8;
+
 var frame_buffers = std.mem.zeroes([2]FrameBuffer);
-var read_index: u8 = 0;
-var write_index: u8 = 1;
+var front_buf_idx: u8 = 0;
+var back_buf_idx: u8 = 1;
+var mutex = std.Thread.Mutex{};
 
 pub fn main() !void {
     var args = std.process.args();
@@ -38,7 +39,7 @@ pub fn main() !void {
     rl.InitAudioDevice();
     defer rl.CloseAudioDevice();
 
-    const audio_stream = rl.LoadAudioStream(chip8.AUDIO_SAMPLE_RATE, 8, 1);
+    const audio_stream = rl.LoadAudioStream(chip8.AUDIO_SAMPLE_RATE, chip8.AUDIO_SAMPLE_SIZE, chip8.AUDIO_CHANNELS);
     defer rl.UnloadAudioStream(audio_stream);
 
     rl.SetAudioStreamCallback(audio_stream, audio_stream_callback);
@@ -47,7 +48,7 @@ pub fn main() !void {
     rl.SetTargetFPS(60);
     while (!rl.WindowShouldClose()) {
         mutex.lock();
-        rl.UpdateTexture(display_texture, &frame_buffers[read_index]);
+        rl.UpdateTexture(display_texture, &frame_buffers[front_buf_idx]);
         mutex.unlock();
 
         rl.BeginDrawing();
@@ -71,10 +72,10 @@ pub fn main() !void {
 
 fn audio_stream_callback(audio_sample_ptr: ?*anyopaque, num_audio_samples: c_uint) callconv(.c) void {
     const audio_samples = @as([*]u8, @ptrCast(audio_sample_ptr))[0..num_audio_samples];
-    chip8.emulate(&frame_buffers[write_index], audio_samples);
+    chip8.emulate(&frame_buffers[back_buf_idx], audio_samples);
 
     mutex.lock();
-    std.mem.swap(u8, &read_index, &write_index);
+    std.mem.swap(u8, &front_buf_idx, &back_buf_idx);
     mutex.unlock();
 }
 
