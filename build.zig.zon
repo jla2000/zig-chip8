@@ -5,6 +5,7 @@
         .raylib = .{
             .url = "git+https://github.com/raysan5/raylib.git#b9e7cb64c5aff120d80caeb7fe8312eba06f2e70",
             .hash = "raylib-5.6.0-dev-whq8uBct2QTAXuPVF7p0lgv9JT0GGyjUUD0QvyLvMpq2",
+            .lazy = true,
         },
     },
     .minimum_zig_version = "0.15.1",

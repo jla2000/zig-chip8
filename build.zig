@@ -17,10 +17,11 @@ pub fn build(b: *std.Build) void {
 
     if (windows) {
         // When cross compiling for windows, build raylib from source
-        const raylib = b.dependency("raylib", .{
+        if (b.lazyDependency("raylib", .{
             .target = target,
-        });
-        exe.linkLibrary(raylib.artifact("raylib"));
+        })) |raylib| {
+            exe.linkLibrary(raylib.artifact("raylib"));
+        }
     } else {
         // When building for linux, raylib is provided by nix
         exe.linkSystemLibrary("raylib");
