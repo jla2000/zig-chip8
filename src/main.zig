@@ -9,9 +9,7 @@ const WINDOW_SCALE = 10;
 const WINDOW_WIDTH = WINDOW_SCALE * chip8.VIDEO_BUF_WIDTH;
 const WINDOW_HEIGHT = WINDOW_SCALE * chip8.VIDEO_BUF_HEIGHT;
 
-const FrameBuffer = [chip8.VIDEO_BUF_SIZE]u8;
-
-var frame_buffers = std.mem.zeroes([2]FrameBuffer);
+var frame_buffers = std.mem.zeroes([2]chip8.FrameBuffer);
 var front_buf_idx: u8 = 0;
 var back_buf_idx: u8 = 1;
 var mutex = std.Thread.Mutex{};

@@ -14,8 +14,10 @@ pub const AUDIO_CHANNELS = 1;
 
 const AUDIO_SAMPLES_PER_CYCLE = AUDIO_SAMPLE_RATE / CPU_CLOCK_SPEED;
 
+pub const FrameBuffer = [VIDEO_BUF_SIZE]u8;
+
 /// Video memory that is used for rendering.
-var video_buf = std.mem.zeroes([VIDEO_BUF_SIZE]u8);
+var video_buf = std.mem.zeroes(FrameBuffer);
 
 /// Contains the last full frame
 var last_rendered_frame = std.mem.zeroes([VIDEO_BUF_SIZE]u8);
