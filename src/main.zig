@@ -57,6 +57,8 @@ pub fn main() !void {
     rl.SetAudioStreamCallback(audio_stream, audio_stream_callback);
     rl.PlayAudioStream(audio_stream);
 
+    const time_location = rl.GetShaderLocation(shader, "time");
+
     rl.SetTargetFPS(60);
     while (!rl.WindowShouldClose()) {
         mutex.lock();
@@ -64,6 +66,8 @@ pub fn main() !void {
         mutex.unlock();
 
         rl.BeginDrawing();
+        const time = @as(f32, @floatCast(rl.GetTime()));
+        rl.SetShaderValue(shader, time_location, &time, rl.SHADER_UNIFORM_FLOAT);
         rl.BeginShaderMode(shader);
         rl.DrawTexturePro(display_texture, rl.Rectangle{
             .x = 0,
