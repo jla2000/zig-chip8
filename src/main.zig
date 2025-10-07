@@ -36,6 +36,9 @@ pub fn main() !void {
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "zig-chip8");
     defer rl.CloseWindow();
 
+    const shader = rl.LoadShaderFromMemory(null, @embedFile("postprocess.fs"));
+    defer rl.UnloadShader(shader);
+
     const display_texture = rl.LoadTextureFromImage(rl.Image{
         .data = null,
         .width = chip8.VIDEO_BUF_WIDTH,
@@ -61,6 +64,7 @@ pub fn main() !void {
         mutex.unlock();
 
         rl.BeginDrawing();
+        rl.BeginShaderMode(shader);
         rl.DrawTexturePro(display_texture, rl.Rectangle{
             .x = 0,
             .y = 0,
@@ -75,6 +79,7 @@ pub fn main() !void {
             .x = 0,
             .y = 0,
         }, 0, rl.WHITE);
+        rl.EndShaderMode();
         rl.EndDrawing();
     }
 }

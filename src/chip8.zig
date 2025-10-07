@@ -317,13 +317,13 @@ fn draw_sprite(x: u8, y: u8, height: u8) void {
             if (get_bit(sprite_byte, @intCast(7 - x_offset))) {
                 const buffer_idx = (y + y_offset) * VIDEO_BUF_WIDTH + (x + x_offset);
 
-                if (video_buf[buffer_idx] == 255) {
+                if (video_buf[buffer_idx] == 1) {
                     // Collision detected.
                     regs[0xf] = 1;
                 }
 
                 // Invert pixel
-                video_buf[buffer_idx] ^= 255;
+                video_buf[buffer_idx] ^= 1;
             }
         }
     }
