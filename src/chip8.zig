@@ -272,6 +272,7 @@ fn run_instruction() void {
     }
 }
 
+/// Currently not implemented
 fn wait_for_key() u8 {
     // unreachable;
     // pc -= 2;
@@ -289,16 +290,19 @@ fn write_u16(address: u16, value: u16) void {
     memory[address + 1] = @intCast(value);
 }
 
+/// Push a single value onto the stack
 fn push_stack(value: u16) void {
     stack[sp] = value;
     sp += 1;
 }
 
+/// Pop a single value from the stack
 fn pop_stack() u16 {
     sp -= 1;
     return stack[sp];
 }
 
+/// Indicates whether the bit at `index` is set.
 fn get_bit(value: u8, index: u3) bool {
     return (value >> index) & 1 == 1;
 }
@@ -316,6 +320,7 @@ fn draw_sprite(x: u8, y: u8, height: u8) void {
         const sprite_byte = memory[idx + y_offset];
 
         for (0..8) |x_offset| {
+            // Bits need to be iterated from most to least significant
             if (get_bit(sprite_byte, @intCast(7 - x_offset))) {
                 const buffer_idx = (y + y_offset) * VIDEO_BUF_WIDTH + (x + x_offset);
 
@@ -331,6 +336,7 @@ fn draw_sprite(x: u8, y: u8, height: u8) void {
     }
 }
 
+/// Convert a value into its digits.
 fn bcd(value: u8) [3]u8 {
     return .{
         (value / 100) % 10,
