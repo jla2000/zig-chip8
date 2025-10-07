@@ -36,7 +36,7 @@ pub fn main() !void {
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "zig-chip8");
     defer rl.CloseWindow();
 
-    const shader = rl.LoadShaderFromMemory(null, @embedFile("postprocess.fs"));
+    const shader = rl.LoadShaderFromMemory(null, @embedFile("postprocess.glsl"));
     defer rl.UnloadShader(shader);
 
     const display_texture = rl.LoadTextureFromImage(rl.Image{
