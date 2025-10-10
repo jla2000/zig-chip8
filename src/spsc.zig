@@ -1,13 +1,11 @@
 const std = @import("std");
 
 pub fn RingBuffer(comptime T: type) type {
-    // std.debug.assert(std.atomic.cache_line == @sizeOf(usize));
-
     return struct {
         const Self = @This();
 
-        write_idx: std.atomic.Value(usize),
-        read_idx: std.atomic.Value(usize),
+        write_idx: std.atomic.Value(usize) align(std.atomic.cache_line),
+        read_idx: std.atomic.Value(usize) align(std.atomic.cache_line),
         buffer: []T,
 
         pub fn init(buffer: []T) Self {

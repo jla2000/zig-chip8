@@ -79,8 +79,7 @@ pub fn load_rom(rom: []const u8) void {
     pc = rom_start;
 }
 
-/// Emulate the CPU.
-/// This function is driven by the amount of requested audio samples.
+/// Emulate the CPU until no more audio samples can be generated
 pub fn emulate(video_output_buf: []u8, audio_sample_ring: *spsc.RingBuffer(u8)) void {
     var enough_audio_samples = false;
 

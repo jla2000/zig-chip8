@@ -10,11 +10,7 @@ const WINDOW_SCALE = 10;
 const WINDOW_WIDTH = WINDOW_SCALE * chip8.VIDEO_BUF_WIDTH;
 const WINDOW_HEIGHT = WINDOW_SCALE * chip8.VIDEO_BUF_HEIGHT;
 
-var frame_buffers = std.mem.zeroes([2]chip8.FrameBuffer);
-var front_buf_idx: u8 = 0;
-var back_buf_idx: u8 = 1;
-var mutex = std.Thread.Mutex{};
-
+var video_buf = std.mem.zeroes(chip8.FrameBuffer);
 var audio_sample_buf = std.mem.zeroes([1024]u8);
 var audio_sample_ring = spsc.RingBuffer(u8).init(&audio_sample_buf);
 
@@ -57,15 +53,15 @@ pub fn main() !void {
     const audio_stream = rl.LoadAudioStream(chip8.AUDIO_SAMPLE_RATE, chip8.AUDIO_SAMPLE_SIZE, chip8.AUDIO_CHANNELS);
     defer rl.UnloadAudioStream(audio_stream);
 
-    chip8.emulate(&frame_buffers[front_buf_idx], &audio_sample_ring);
+    chip8.emulate(&video_buf, &audio_sample_ring);
 
     rl.SetAudioStreamCallback(audio_stream, audio_stream_callback);
     rl.PlayAudioStream(audio_stream);
 
     rl.SetTargetFPS(60);
     while (!rl.WindowShouldClose()) {
-        chip8.emulate(&frame_buffers[front_buf_idx], &audio_sample_ring);
-        rl.UpdateTexture(display_texture, &frame_buffers[front_buf_idx]);
+        chip8.emulate(&video_buf, &audio_sample_ring);
+        rl.UpdateTexture(display_texture, &video_buf);
 
         rl.BeginDrawing();
         const time = @as(f32, @floatCast(rl.GetTime()));
