@@ -1,5 +1,6 @@
 const std = @import("std");
 const chip8 = @import("chip8.zig");
+const spsc = @import("spsc.zig");
 
 const rl = @cImport({
     @cInclude("raylib.h");
@@ -13,6 +14,9 @@ var frame_buffers = std.mem.zeroes([2]chip8.FrameBuffer);
 var front_buf_idx: u8 = 0;
 var back_buf_idx: u8 = 1;
 var mutex = std.Thread.Mutex{};
+
+var audio_sample_buf = std.mem.zeroes([1024]u8);
+var audio_sample_ring = spsc.RingBuffer(u8).init(&audio_sample_buf);
 
 pub fn main() !void {
     const allocator = std.heap.c_allocator;
@@ -36,6 +40,7 @@ pub fn main() !void {
 
     const shader = rl.LoadShaderFromMemory(null, @embedFile("postprocess.glsl"));
     defer rl.UnloadShader(shader);
+    const time_location = rl.GetShaderLocation(shader, "time");
 
     const display_texture = rl.LoadTextureFromImage(rl.Image{
         .data = null,
@@ -52,16 +57,15 @@ pub fn main() !void {
     const audio_stream = rl.LoadAudioStream(chip8.AUDIO_SAMPLE_RATE, chip8.AUDIO_SAMPLE_SIZE, chip8.AUDIO_CHANNELS);
     defer rl.UnloadAudioStream(audio_stream);
 
+    chip8.emulate(&frame_buffers[front_buf_idx], &audio_sample_ring);
+
     rl.SetAudioStreamCallback(audio_stream, audio_stream_callback);
     rl.PlayAudioStream(audio_stream);
 
-    const time_location = rl.GetShaderLocation(shader, "time");
-
     rl.SetTargetFPS(60);
     while (!rl.WindowShouldClose()) {
-        mutex.lock();
+        chip8.emulate(&frame_buffers[front_buf_idx], &audio_sample_ring);
         rl.UpdateTexture(display_texture, &frame_buffers[front_buf_idx]);
-        mutex.unlock();
 
         rl.BeginDrawing();
         const time = @as(f32, @floatCast(rl.GetTime()));
@@ -88,9 +92,12 @@ pub fn main() !void {
 
 fn audio_stream_callback(audio_sample_ptr: ?*anyopaque, num_audio_samples: c_uint) callconv(.c) void {
     const audio_samples = @as([*]u8, @ptrCast(audio_sample_ptr))[0..num_audio_samples];
-    chip8.emulate(&frame_buffers[back_buf_idx], audio_samples);
 
-    mutex.lock();
-    std.mem.swap(u8, &front_buf_idx, &back_buf_idx);
-    mutex.unlock();
+    var write_idx: usize = 0;
+    while (write_idx < audio_samples.len) {
+        if (audio_sample_ring.consume()) |sample| {
+            audio_samples[write_idx] = sample;
+            write_idx += 1;
+        }
+    }
 }

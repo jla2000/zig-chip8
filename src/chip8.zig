@@ -1,4 +1,5 @@
 const std = @import("std");
+const spsc = @import("spsc.zig");
 
 pub const SPEED_MODIFIER = 1;
 pub const CPU_CLOCK_SPEED = 600 * SPEED_MODIFIER;
@@ -80,9 +81,24 @@ pub fn load_rom(rom: []const u8) void {
 
 /// Emulate the CPU.
 /// This function is driven by the amount of requested audio samples.
-pub fn emulate(video_output_buf: []u8, audio_output_buf: []u8) void {
-    // Emulate cpu until enough audio samples have been generated
-    while (audio_samples.items.len < audio_output_buf.len) {
+pub fn emulate(video_output_buf: []u8, audio_sample_ring: *spsc.RingBuffer(u8)) void {
+    var enough_audio_samples = false;
+
+    while (!enough_audio_samples) {
+        // Consume any remaining samples
+        var num_consumed_samples: usize = 0;
+        for (0..audio_samples.items.len) |i| {
+            audio_sample_ring.produce(audio_samples.items[i]) catch {
+                enough_audio_samples = true;
+                break;
+            };
+            num_consumed_samples += 1;
+        }
+        remove_audio_samples(num_consumed_samples);
+
+        if (enough_audio_samples)
+            break;
+
         // Handle timers
         if (cycle_counter % (CPU_CLOCK_SPEED / TIMER_CLOCK_SPEED) == 0) {
             sound_timer -|= 1;
@@ -94,10 +110,6 @@ pub fn emulate(video_output_buf: []u8, audio_output_buf: []u8) void {
 
         cycle_counter += 1;
     }
-
-    // Fill given audio buffer
-    @memcpy(audio_output_buf, audio_samples.items[0..audio_output_buf.len]);
-    remove_audio_samples(audio_output_buf.len);
 
     // Fill given video buffer
     @memcpy(video_output_buf, &last_rendered_frame);
@@ -115,8 +127,11 @@ pub fn release_key(key: u8) void {
 
 /// Removes audio samples after they have ceen consumed
 fn remove_audio_samples(count: usize) void {
+    std.debug.assert(count <= audio_samples.items.len);
+
     const remaining_samples = audio_samples.items.len - count;
-    @memcpy(audio_samples.items[0..remaining_samples], audio_samples.items[count .. count + remaining_samples]);
+    if (remaining_samples > 0)
+        @memmove(audio_samples.items[0..remaining_samples], audio_samples.items[count .. count + remaining_samples]);
     audio_samples.items.len = remaining_samples;
 }
 
