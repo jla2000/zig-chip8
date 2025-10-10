@@ -9,7 +9,7 @@ pub const VIDEO_BUF_WIDTH = 64;
 pub const VIDEO_BUF_HEIGHT = 32;
 pub const VIDEO_BUF_SIZE = VIDEO_BUF_WIDTH * VIDEO_BUF_HEIGHT;
 
-pub const AUDIO_SAMPLE_RATE = 48000;
+pub const AUDIO_SAMPLE_RATE = 44100;
 pub const AUDIO_SAMPLE_SIZE = 8;
 pub const AUDIO_CHANNELS = 1;
 
@@ -125,10 +125,11 @@ fn generate_audio_samples(audio_sample_ring: *spsc.RingBuffer(u8)) void {
         const t = @as(f32, @floatFromInt(i)) / AUDIO_SAMPLE_RATE;
         const sample: u8 = if (@sin(2.0 * std.math.pi * freq * t) > 0) 100 else 0;
 
-        while (true) {
-            audio_sample_ring.produce(if (sound_timer > 0) sample else 0) catch continue;
-            break;
-        }
+        // while (true) {
+        //     audio_sample_ring.produce(if (sound_timer > 0) sample else 0) catch continue;
+        //     break;
+        // }
+        audio_sample_ring.produce(if (sound_timer > 0) sample else 0) catch unreachable;
     }
 }
 

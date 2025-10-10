@@ -10,10 +10,13 @@ const WINDOW_SCALE = 10;
 const WINDOW_WIDTH = WINDOW_SCALE * chip8.VIDEO_BUF_WIDTH;
 const WINDOW_HEIGHT = WINDOW_SCALE * chip8.VIDEO_BUF_HEIGHT;
 const TARGET_FPS = 60;
+const AUDIO_SAMPLES_PER_FRAME = chip8.AUDIO_SAMPLE_RATE / TARGET_FPS;
 
 var video_buf = std.mem.zeroes(chip8.FrameBuffer);
-var audio_sample_buf = std.mem.zeroes([chip8.AUDIO_SAMPLE_RATE / TARGET_FPS * 2]u8);
+var audio_sample_buf = std.mem.zeroes([AUDIO_SAMPLES_PER_FRAME * 4 + 1]u8);
 var audio_sample_ring = spsc.RingBuffer(u8).init(&audio_sample_buf);
+
+var start = std.atomic.Value(bool).init(false);
 
 pub fn main() !void {
     const allocator = std.heap.c_allocator;
@@ -57,10 +60,15 @@ pub fn main() !void {
     defer rl.UnloadAudioStream(audio_stream);
 
     rl.SetAudioStreamCallback(audio_stream, audio_stream_callback);
+    for (0..AUDIO_SAMPLES_PER_FRAME * 2) |_| {
+        audio_sample_ring.produce(0) catch unreachable;
+    }
     rl.PlayAudioStream(audio_stream);
 
     while (!rl.WindowShouldClose()) {
         chip8.emulate(&video_buf, &audio_sample_ring, chip8.AUDIO_SAMPLE_RATE / TARGET_FPS);
+        start.store(true, .monotonic);
+
         rl.UpdateTexture(display_texture, &video_buf);
 
         rl.BeginDrawing();
@@ -88,6 +96,8 @@ pub fn main() !void {
 
 fn audio_stream_callback(audio_sample_ptr: ?*anyopaque, num_audio_samples: c_uint) callconv(.c) void {
     const audio_samples = @as([*]u8, @ptrCast(audio_sample_ptr))[0..num_audio_samples];
+
+    while (!start.load(.monotonic)) {}
 
     var write_idx: usize = 0;
     while (write_idx < audio_samples.len) {
