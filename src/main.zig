@@ -9,9 +9,10 @@ const rl = @cImport({
 const WINDOW_SCALE = 10;
 const WINDOW_WIDTH = WINDOW_SCALE * chip8.VIDEO_BUF_WIDTH;
 const WINDOW_HEIGHT = WINDOW_SCALE * chip8.VIDEO_BUF_HEIGHT;
+const TARGET_FPS = 60;
 
 var video_buf = std.mem.zeroes(chip8.FrameBuffer);
-var audio_sample_buf = std.mem.zeroes([1024]u8);
+var audio_sample_buf = std.mem.zeroes([chip8.AUDIO_SAMPLE_RATE / TARGET_FPS * 2]u8);
 var audio_sample_ring = spsc.RingBuffer(u8).init(&audio_sample_buf);
 
 pub fn main() !void {
@@ -58,7 +59,7 @@ pub fn main() !void {
     rl.SetAudioStreamCallback(audio_stream, audio_stream_callback);
     rl.PlayAudioStream(audio_stream);
 
-    rl.SetTargetFPS(60);
+    rl.SetTargetFPS(TARGET_FPS);
     while (!rl.WindowShouldClose()) {
         chip8.emulate(&video_buf, &audio_sample_ring);
         rl.UpdateTexture(display_texture, &video_buf);
