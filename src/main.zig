@@ -35,6 +35,8 @@ pub fn main() !void {
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "zig-chip8");
     defer rl.CloseWindow();
 
+    rl.SetWindowState(rl.FLAG_VSYNC_HINT);
+
     const shader = rl.LoadShaderFromMemory(null, @embedFile("postprocess.glsl"));
     defer rl.UnloadShader(shader);
     const time_location = rl.GetShaderLocation(shader, "time");
@@ -54,14 +56,11 @@ pub fn main() !void {
     const audio_stream = rl.LoadAudioStream(chip8.AUDIO_SAMPLE_RATE, chip8.AUDIO_SAMPLE_SIZE, chip8.AUDIO_CHANNELS);
     defer rl.UnloadAudioStream(audio_stream);
 
-    chip8.emulate(&video_buf, &audio_sample_ring);
-
     rl.SetAudioStreamCallback(audio_stream, audio_stream_callback);
     rl.PlayAudioStream(audio_stream);
 
-    rl.SetTargetFPS(TARGET_FPS);
     while (!rl.WindowShouldClose()) {
-        chip8.emulate(&video_buf, &audio_sample_ring);
+        chip8.emulate(&video_buf, &audio_sample_ring, chip8.AUDIO_SAMPLE_RATE / TARGET_FPS);
         rl.UpdateTexture(display_texture, &video_buf);
 
         rl.BeginDrawing();
