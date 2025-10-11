@@ -126,7 +126,10 @@ fn generate_audio_samples(audio_sample_ring: *spsc.RingBuffer(u8)) void {
         const sample: u8 = if (@sin(2.0 * std.math.pi * freq * t) > 0) 100 else 0;
 
         while (true) {
-            audio_sample_ring.produce(if (sound_timer > 0) sample else 0) catch continue;
+            audio_sample_ring.produce(if (sound_timer > 0) sample else 0) catch {
+                std.debug.print("WARNING: Audio ring buffer full!\n", .{});
+                continue;
+            };
             break;
         }
     }

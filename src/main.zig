@@ -11,9 +11,12 @@ const WINDOW_WIDTH = WINDOW_SCALE * chip8.VIDEO_BUF_WIDTH;
 const WINDOW_HEIGHT = WINDOW_SCALE * chip8.VIDEO_BUF_HEIGHT;
 const TARGET_FPS = 60;
 
+const AUDIO_SAMPLES_PER_FRAME = chip8.AUDIO_SAMPLE_RATE / TARGET_FPS;
+
 var video_buf = std.mem.zeroes(chip8.FrameBuffer);
-var audio_sample_buf = std.mem.zeroes([chip8.AUDIO_SAMPLE_RATE / TARGET_FPS * 2]u8);
+var audio_sample_buf = std.mem.zeroes([AUDIO_SAMPLES_PER_FRAME * 3 + 1]u8);
 var audio_sample_ring = spsc.RingBuffer(u8).init(&audio_sample_buf);
+var audio_running = std.atomic.Value(bool).init(false);
 
 pub fn main() !void {
     const allocator = std.heap.c_allocator;
@@ -35,8 +38,6 @@ pub fn main() !void {
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "zig-chip8");
     defer rl.CloseWindow();
 
-    rl.SetWindowState(rl.FLAG_VSYNC_HINT);
-
     const shader = rl.LoadShaderFromMemory(null, @embedFile("postprocess.glsl"));
     defer rl.UnloadShader(shader);
     const time_location = rl.GetShaderLocation(shader, "time");
@@ -56,13 +57,17 @@ pub fn main() !void {
     const audio_stream = rl.LoadAudioStream(chip8.AUDIO_SAMPLE_RATE, chip8.AUDIO_SAMPLE_SIZE, chip8.AUDIO_CHANNELS);
     defer rl.UnloadAudioStream(audio_stream);
 
-    for (0..audio_sample_buf.len / 2) |_| {
+    // Prefill one audio frame
+    for (0..AUDIO_SAMPLES_PER_FRAME) |_| {
         audio_sample_ring.produce(0) catch unreachable;
     }
 
     rl.SetAudioStreamCallback(audio_stream, audio_stream_callback);
     rl.PlayAudioStream(audio_stream);
 
+    while (!audio_running.load(.monotonic)) {}
+
+    rl.SetTargetFPS(60);
     while (!rl.WindowShouldClose()) {
         chip8.emulate(&video_buf, &audio_sample_ring);
         rl.UpdateTexture(display_texture, &video_buf);
@@ -92,6 +97,8 @@ pub fn main() !void {
 
 fn audio_stream_callback(audio_sample_ptr: ?*anyopaque, num_audio_samples: c_uint) callconv(.c) void {
     const audio_samples = @as([*]u8, @ptrCast(audio_sample_ptr))[0..num_audio_samples];
+
+    audio_running.store(true, .monotonic);
 
     var write_idx: usize = 0;
     while (write_idx < audio_samples.len) {
