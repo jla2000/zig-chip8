@@ -2,11 +2,10 @@
 
 Cross platform [chip8](https://en.wikipedia.org/wiki/CHIP-8) emulator, built using zig and [raylib](https://www.raylib.com/)
 
-## Features
+## Architecture
 
-- Minimal
-- Cross platform
-- Synchronized by audio
+The emulation logic is executed on the rendering thread, while audio samples are being played using an audio callback.
+The emulator will emit audio samples to a dedicated ring buffer, which the audio thread will consume in the background.
 
 ## Try it out using nix
 
