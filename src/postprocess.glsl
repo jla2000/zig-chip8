@@ -1,3 +1,5 @@
+/// Post-processing shader that adds a vignette plus some simulated scanlines.
+
 #version 330
 
 in vec2 fragTexCoord;
