@@ -60,7 +60,7 @@ pub fn main() !void {
     rl.PlayAudioStream(audio_stream);
 
     while (!rl.WindowShouldClose()) {
-        chip8.emulate(&video_buf, &audio_sample_ring, chip8.AUDIO_SAMPLE_RATE / TARGET_FPS);
+        chip8.emulate(&video_buf, &audio_sample_ring);
         rl.UpdateTexture(display_texture, &video_buf);
 
         rl.BeginDrawing();

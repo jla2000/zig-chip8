@@ -80,8 +80,8 @@ pub fn load_rom(rom: []const u8) void {
 }
 
 /// Emulate the CPU until no more audio samples can be generated
-pub fn emulate(video_output_buf: []u8, audio_sample_ring: *spsc.RingBuffer(u8), num_audio_samples: usize) void {
-    while (audio_samples.items.len < num_audio_samples) {
+pub fn emulate(video_output_buf: []u8, audio_sample_ring: *spsc.RingBuffer(u8)) void {
+    for (0..10) |_| {
         // Handle timers
         if (cycle_counter % (CPU_CLOCK_SPEED / TIMER_CLOCK_SPEED) == 0) {
             sound_timer -|= 1;
