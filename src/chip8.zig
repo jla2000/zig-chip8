@@ -13,7 +13,7 @@ pub const AUDIO_SAMPLE_RATE = 44100;
 pub const AUDIO_SAMPLE_SIZE = 8;
 pub const AUDIO_CHANNELS = 1;
 
-const AUDIO_SAMPLES_PER_CYCLE = AUDIO_SAMPLE_RATE / CPU_CLOCK_SPEED;
+pub const AUDIO_SAMPLES_PER_CYCLE = AUDIO_SAMPLE_RATE / CPU_CLOCK_SPEED;
 
 pub const FrameBuffer = [VIDEO_BUF_SIZE]u8;
 
@@ -22,10 +22,6 @@ var video_buf = std.mem.zeroes(FrameBuffer);
 
 /// Contains the last full frame
 var last_rendered_frame = std.mem.zeroes([VIDEO_BUF_SIZE]u8);
-
-/// Audio buffer that is filled with generated audio samples
-var audio_buf = std.mem.zeroes([1024]u8);
-var audio_samples = std.ArrayListUnmanaged(u8).initBuffer(&audio_buf);
 
 var memory = std.mem.zeroes([4096]u8);
 var stack = std.mem.zeroes([16]u16);
@@ -82,24 +78,16 @@ pub fn load_rom(rom: []const u8) void {
 
 /// Emulate the CPU until the given amount of samples is available.
 /// The requested amount of samples is then pushed into the ring buffer.
-pub fn emulate(video_output_buf: []u8, audio_sample_ring: *spsc.RingBuffer(u8), num_samples: usize) void {
-    while (audio_samples.items.len < num_samples) {
-        // Handle timers
-        if (cycle_counter % (CPU_CLOCK_SPEED / TIMER_CLOCK_SPEED) == 0) {
-            sound_timer -|= 1;
-            delay_timer -|= 1;
-        }
-
-        run_instruction();
-        generate_audio_samples();
-
-        cycle_counter += 1;
+pub fn emulate(video_output_buf: []u8, audio_sample_ring: *spsc.RingBuffer(u8)) void {
+    if (cycle_counter % (CPU_CLOCK_SPEED / TIMER_CLOCK_SPEED) == 0) {
+        sound_timer -|= 1;
+        delay_timer -|= 1;
     }
 
-    for (0..num_samples) |i| {
-        audio_sample_ring.produce(audio_buf[i]) catch unreachable;
-    }
-    remove_audio_samples(num_samples);
+    run_instruction();
+    generate_audio_samples(audio_sample_ring);
+
+    cycle_counter += 1;
 
     // Fill given video buffer
     @memcpy(video_output_buf, &last_rendered_frame);
@@ -119,24 +107,14 @@ pub fn reset_keys() void {
     }
 }
 
-/// Removes audio samples after they have ceen consumed
-fn remove_audio_samples(count: usize) void {
-    std.debug.assert(count <= audio_samples.items.len);
-
-    const remaining_samples = audio_samples.items.len - count;
-    if (remaining_samples > 0)
-        @memmove(audio_samples.items[0..remaining_samples], audio_samples.items[count .. count + remaining_samples]);
-    audio_samples.items.len = remaining_samples;
-}
-
 /// Generate audio samples for one cycle
-fn generate_audio_samples() void {
+fn generate_audio_samples(audio_ring: *spsc.RingBuffer(u8)) void {
     for (0..AUDIO_SAMPLES_PER_CYCLE) |i| {
         const freq = 440;
         const t = @as(f32, @floatFromInt(i)) / AUDIO_SAMPLE_RATE;
         const sample: u8 = if (@sin(2.0 * std.math.pi * freq * t) > 0) 100 else 0;
 
-        audio_samples.appendBounded(if (sound_timer > 0) sample else 0) catch unreachable;
+        audio_ring.produce(if (sound_timer > 0) sample else 0) catch unreachable;
     }
 }
 
