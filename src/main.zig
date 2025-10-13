@@ -69,7 +69,6 @@ pub fn main() !void {
 
     rl.SetAudioStreamCallback(audio_stream, audio_stream_callback);
     rl.PlayAudioStream(audio_stream);
-    defer rl.StopAudioStream(audio_stream);
 
     // Block until audio samples are requested.
     while (!audio.playing.load(.monotonic)) {}
@@ -102,15 +101,18 @@ pub fn main() !void {
 
         chip8.reset_keys();
         while (true) {
-            const key = @as(u8, @intCast(rl.GetCharPressed()));
+            const key: u8 = @intCast(rl.GetCharPressed());
             switch (key) {
                 '0'...'9' => chip8.press_key(key - '0'),
-                'a'...'f' => chip8.press_key(key - 'a'),
+                'a'...'f' => chip8.press_key(key - 'a' + 10),
                 0 => break,
                 else => {},
             }
         }
     }
+
+    // Hint the audio thread that it should stop.
+    audio.playing.store(false, .monotonic);
 }
 
 fn audio_stream_callback(audio_sample_ptr: ?*anyopaque, num_audio_samples: c_uint) callconv(.c) void {
@@ -124,6 +126,8 @@ fn audio_stream_callback(audio_sample_ptr: ?*anyopaque, num_audio_samples: c_uin
         if (audio.sample_ring.consume()) |sample| {
             audio_samples[write_idx] = sample;
             write_idx += 1;
+        } else if (!audio.playing.load(.monotonic)) {
+            break;
         }
     }
 }
