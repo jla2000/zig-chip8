@@ -9,7 +9,7 @@ pub const VIDEO_BUF_WIDTH = 64;
 pub const VIDEO_BUF_HEIGHT = 32;
 pub const VIDEO_BUF_SIZE = VIDEO_BUF_WIDTH * VIDEO_BUF_HEIGHT;
 
-pub const AUDIO_SAMPLE_RATE = 48000;
+pub const AUDIO_SAMPLE_RATE = 44100;
 pub const AUDIO_SAMPLE_SIZE = 8;
 pub const AUDIO_CHANNELS = 1;
 
@@ -80,7 +80,8 @@ pub fn load_rom(rom: []const u8) void {
     pc = rom_start;
 }
 
-/// Emulate the CPU until no more audio samples can be generated
+/// Emulate the CPU until the given amount of samples is available.
+/// The requested amount of samples is then pushed into the ring buffer.
 pub fn emulate(video_output_buf: []u8, audio_sample_ring: *spsc.RingBuffer(u8), num_samples: usize) void {
     while (audio_samples.items.len < num_samples) {
         // Handle timers

@@ -80,7 +80,7 @@ pub fn main() !void {
         }
         rl.UpdateTexture(display_texture, &display_buffer);
 
-        const time = @as(f32, @floatCast(rl.GetTime()));
+        const time: f32 = @floatCast(rl.GetTime());
 
         rl.BeginDrawing();
         rl.SetShaderValue(shader, time_location, &time, rl.SHADER_UNIFORM_FLOAT);
