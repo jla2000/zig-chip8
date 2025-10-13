@@ -69,6 +69,7 @@ pub fn main() !void {
 
     rl.SetAudioStreamCallback(audio_stream, audio_stream_callback);
     rl.PlayAudioStream(audio_stream);
+    defer rl.StopAudioStream(audio_stream);
 
     // Block until audio samples are requested.
     while (!audio.playing.load(.monotonic)) {}
@@ -98,6 +99,17 @@ pub fn main() !void {
         }, 0, rl.WHITE);
         rl.EndShaderMode();
         rl.EndDrawing();
+
+        chip8.reset_keys();
+        while (true) {
+            const key = @as(u8, @intCast(rl.GetCharPressed()));
+            switch (key) {
+                '0'...'9' => chip8.press_key(key - '0'),
+                'a'...'f' => chip8.press_key(key - 'a'),
+                0 => break,
+                else => {},
+            }
+        }
     }
 }
 

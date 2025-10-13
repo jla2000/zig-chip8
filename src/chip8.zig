@@ -35,6 +35,7 @@ var regs = std.mem.zeroes([16]u8);
 
 /// Keyboard state
 var keys = std.mem.zeroes([16]bool);
+var last_key: ?u8 = null;
 
 /// Stack pointer
 var sp: u8 = 0;
@@ -101,11 +102,15 @@ pub fn emulate(video_output_buf: []u8, audio_sample_ring: *spsc.RingBuffer(u8)) 
 /// Notify that a key has been pressed.
 pub fn press_key(key: u8) void {
     keys[key] = true;
+    last_key = key;
 }
 
 /// Notify that a key has been released.
-pub fn release_key(key: u8) void {
-    keys[key] = false;
+pub fn reset_keys() void {
+    last_key = null;
+    for (&keys) |*key| {
+        key.* = false;
+    }
 }
 
 /// Removes audio samples after they have ceen consumed
@@ -278,9 +283,13 @@ fn run_instruction() void {
 
 /// Currently not implemented
 fn wait_for_key() u8 {
-    // unreachable;
-    // pc -= 2;
-    return 0;
+    if (last_key) |key| {
+        last_key = null;
+        return key;
+    } else {
+        pc -= 2;
+        return 0;
+    }
 }
 
 /// Read an u16 from the given address in memory.

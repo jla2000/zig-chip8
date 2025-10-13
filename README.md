@@ -29,6 +29,5 @@ zig build -Dwindows
 
 ## Todo's
 
-- Implement keyboard handling
 - Implement super chip 8 extension
 - Implement xochip extension
