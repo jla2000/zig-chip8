@@ -13,12 +13,16 @@ const TARGET_FPS = 60;
 const AUDIO_SAMPLES_PER_FRAME = chip8.AUDIO_SAMPLE_RATE / TARGET_FPS;
 
 const audio = struct {
-    /// Memory for the audio ring buffer
+    /// Buffer for the audio_sample_ring
     var sample_buf = std.mem.zeroes([AUDIO_SAMPLES_PER_FRAME * 3 + 1]u8);
-    /// Audio ring buffer, samples are produced in the rendering loop and consumed in the audio callback.
+    /// Audio ring buffer, contains generated samples.
     var sample_ring = spsc.RingBuffer(u8).init(&sample_buf);
-    /// Used to block emulation until the audio card wants to consume samples
-    var playing = std.atomic.Value(bool).init(false);
+    /// Buffer for the request_sample_ring.
+    var request_buf = std.mem.zeroes([16]u16);
+    /// Audio requestor ring, tells the rendering thread how many samples should be produced.
+    var request_ring = spsc.RingBuffer(u16).init(&request_buf);
+    /// Used to gracefully shut down the audio thread.
+    var should_play = std.atomic.Value(bool).init(true);
 };
 
 pub fn main() !void {
@@ -62,19 +66,18 @@ pub fn main() !void {
     const audio_stream = rl.LoadAudioStream(chip8.AUDIO_SAMPLE_RATE, chip8.AUDIO_SAMPLE_SIZE, chip8.AUDIO_CHANNELS);
     defer rl.UnloadAudioStream(audio_stream);
 
-    // Prefill one audio frame
-    for (0..AUDIO_SAMPLES_PER_FRAME) |_| {
+    // Prefill two audio frames
+    for (0..audio.sample_buf.len - 1) |_| {
         audio.sample_ring.produce(0) catch unreachable;
     }
 
     rl.SetAudioStreamCallback(audio_stream, audio_stream_callback);
     rl.PlayAudioStream(audio_stream);
 
-    // Block until audio samples are requested.
-    while (!audio.playing.load(.monotonic)) {}
-
     while (!rl.WindowShouldClose()) {
-        chip8.emulate(&display_buffer, &audio.sample_ring);
+        while (audio.request_ring.consume()) |num_samples| {
+            chip8.emulate(&display_buffer, &audio.sample_ring, num_samples);
+        }
         rl.UpdateTexture(display_texture, &display_buffer);
 
         const time = @as(f32, @floatCast(rl.GetTime()));
@@ -97,6 +100,7 @@ pub fn main() !void {
             .y = 0,
         }, 0, rl.WHITE);
         rl.EndShaderMode();
+        rl.DrawFPS(0, 0);
         rl.EndDrawing();
 
         chip8.reset_keys();
@@ -111,23 +115,27 @@ pub fn main() !void {
         }
     }
 
-    // Hint the audio thread that it should stop.
-    audio.playing.store(false, .monotonic);
+    // Hint the audio thread that no audio is being generated anymore.
+    audio.should_play.store(false, .monotonic);
 }
 
 fn audio_stream_callback(audio_sample_ptr: ?*anyopaque, num_audio_samples: c_uint) callconv(.c) void {
     const audio_samples = @as([*]u8, @ptrCast(audio_sample_ptr))[0..num_audio_samples];
-
-    // Instruct the main thread to start producing audio samples.
-    audio.playing.store(true, .monotonic);
 
     var write_idx: usize = 0;
     while (write_idx < audio_samples.len) {
         if (audio.sample_ring.consume()) |sample| {
             audio_samples[write_idx] = sample;
             write_idx += 1;
-        } else if (!audio.playing.load(.monotonic)) {
-            break;
+        } else {
+            if (!audio.should_play.load(.monotonic)) {
+                break;
+            } else {
+                std.debug.panic("ERROR: Audio underflow\n", .{});
+            }
         }
     }
+
+    // Request the exact amount that was taken from ring buffer
+    audio.request_ring.produce(@intCast(num_audio_samples)) catch unreachable;
 }

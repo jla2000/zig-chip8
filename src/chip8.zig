@@ -81,8 +81,8 @@ pub fn load_rom(rom: []const u8) void {
 }
 
 /// Emulate the CPU until no more audio samples can be generated
-pub fn emulate(video_output_buf: []u8, audio_sample_ring: *spsc.RingBuffer(u8)) void {
-    for (0..10) |_| {
+pub fn emulate(video_output_buf: []u8, audio_sample_ring: *spsc.RingBuffer(u8), num_samples: usize) void {
+    while (audio_samples.items.len < num_samples) {
         // Handle timers
         if (cycle_counter % (CPU_CLOCK_SPEED / TIMER_CLOCK_SPEED) == 0) {
             sound_timer -|= 1;
@@ -90,10 +90,15 @@ pub fn emulate(video_output_buf: []u8, audio_sample_ring: *spsc.RingBuffer(u8)) 
         }
 
         run_instruction();
-        generate_audio_samples(audio_sample_ring);
+        generate_audio_samples();
 
         cycle_counter += 1;
     }
+
+    for (0..num_samples) |i| {
+        audio_sample_ring.produce(audio_buf[i]) catch unreachable;
+    }
+    remove_audio_samples(num_samples);
 
     // Fill given video buffer
     @memcpy(video_output_buf, &last_rendered_frame);
@@ -124,19 +129,13 @@ fn remove_audio_samples(count: usize) void {
 }
 
 /// Generate audio samples for one cycle
-fn generate_audio_samples(audio_sample_ring: *spsc.RingBuffer(u8)) void {
+fn generate_audio_samples() void {
     for (0..AUDIO_SAMPLES_PER_CYCLE) |i| {
         const freq = 440;
         const t = @as(f32, @floatFromInt(i)) / AUDIO_SAMPLE_RATE;
         const sample: u8 = if (@sin(2.0 * std.math.pi * freq * t) > 0) 100 else 0;
 
-        while (true) {
-            audio_sample_ring.produce(if (sound_timer > 0) sample else 0) catch {
-                std.debug.print("WARNING: Audio ring buffer full!\n", .{});
-                continue;
-            };
-            break;
-        }
+        audio_samples.appendBounded(if (sound_timer > 0) sample else 0) catch unreachable;
     }
 }
 
